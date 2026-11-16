@@ -1,3 +1,15 @@
+# 1. Python vs. Excel:
+# Using Python, I could automate having it read a CSV, do the math, filter based on
+# certain orders, and then generate a cleaned report every time I execute the code.
+# Compared to Python, using Excel would allow me to easily see the data, change
+# specific elements, or generate charts with simple steps.
+#
+# 2. How this could be used in a business with append mode:
+# Using append mode, a business could generate a log every time their daily report
+# is executed by adding in the date, time, and overall revenue. Because this would
+# append new data onto old data, people would be able to see the history to note
+# when it was executed or to see what issues occurred.
+
 
 import csv
 from datetime import datetime
