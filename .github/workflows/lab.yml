@@ -1,0 +1,79 @@
+name: Verify sales CSV lab
+on:
+  push:
+    paths:
+      - ".github/workflows/lab.yml"
+  workflow_dispatch:
+permissions:
+  contents: write
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.14"
+      - name: Set up supplied data and repository files
+        run: |
+          mkdir -p data
+          curl --fail --location https://markumreed.github.io/ism2411/assets/downloads/sales.csv --output data/sales.csv
+          curl --fail --location https://raw.githubusercontent.com/suryadatthag-hub/ism2411/main/.gitignore --output .gitignore
+          cat > README.md <<'EOF'
+          # ISM2411 Lab 12 — Read a Sales CSV, Write a Cleaned Report
+          
+          Suryadattha Gottimukkala
+          
+          Run from the repository root:
+          
+          ```bash
+          python csv_practice.py
+          ```
+          
+          Exercises 1–8 read `data/sales.csv`, calculate revenue, write orders above $100 to `data/cleaned.csv`, summarize products, and append one timestamped entry per run to `data/run_log.txt`.
+          EOF
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add README.md .gitignore data/sales.csv
+          git diff --cached --quiet || git commit -m "Add supplied sales data, gitignore, and run instructions"
+      - name: Run the script three times
+        run: |
+          python csv_practice.py
+          sleep 1
+          python csv_practice.py
+          sleep 1
+          python csv_practice.py
+      - name: Check source, filtered output, and appended log
+        run: |
+          python - <<'PY'
+          import csv
+          from decimal import Decimal
+          from pathlib import Path
+          with open("data/sales.csv", newline="", encoding="utf-8-sig") as f:
+              reader = csv.DictReader(f)
+              assert reader.fieldnames == ["product", "price", "quantity"]
+              rows = list(reader)
+          assert len(rows) == 12, f"Expected 12 data rows, got {len(rows)}"
+          expected = []
+          revenue = Decimal("0")
+          for row in rows:
+              price = Decimal(row["price"])
+              qty = int(row["quantity"])
+              total = price * qty
+              revenue += total
+              if total > 100:
+                  expected.append([row["product"].strip(), f"{price:.2f}", str(qty), f"{total:.2f}"])
+          with open("data/cleaned.csv", newline="") as f:
+              actual = list(csv.reader(f))
+          assert actual[0] == ["Product", "Price", "Qty", "Total"]
+          assert actual[1:] == expected
+          entries = Path("data/run_log.txt").read_text().splitlines()
+          assert len(entries) >= 3
+          assert all(line.endswith(f"Total revenue: ${revenue:.2f}") for line in entries[-3:])
+          print(f"Verified {len(rows)} source rows, {len(expected)} qualifying orders, revenue ${revenue:.2f}, and {len(entries)} log entries.")
+          PY
+      - name: Commit generated output files
+        run: |
+          git add data/cleaned.csv data/run_log.txt
+          git commit -m "Generate cleaned orders and verify three append log entries"
+          git push
